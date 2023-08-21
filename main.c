@@ -185,7 +185,7 @@ static inline sbi_ret_t handle_sbi_ecall_RST(vm_t *vm, int32_t fid)
 }
 
 #define RV_MVENDORID 0x12345678
-#define RV_MARCHID ((1 << 31) | 1)
+#define RV_MARCHID ((1UL << 31) | 1)
 #define RV_MIMPID 1
 
 static inline sbi_ret_t handle_sbi_ecall_BASE(vm_t *vm, int32_t fid)
@@ -202,7 +202,7 @@ static inline sbi_ret_t handle_sbi_ecall_BASE(vm_t *vm, int32_t fid)
     case SBI_BASE__GET_MIMPID:
         return (sbi_ret_t){SBI_SUCCESS, RV_MIMPID};
     case SBI_BASE__GET_SBI_SPEC_VERSION:
-        return (sbi_ret_t){SBI_SUCCESS, (0 << 24) | 3}; /* version 0.3 */
+        return (sbi_ret_t){SBI_SUCCESS, (0UL << 24) | 3}; /* version 0.3 */
     case SBI_BASE__PROBE_EXTENSION: {
         int32_t eid = (int32_t) vm->x_regs[RV_R_A0];
         bool available =

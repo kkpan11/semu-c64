@@ -438,8 +438,8 @@ static void csr_read(vm_t *vm, uint16_t addr, uint32_t *value)
         vm->sstatus_sie && (*value |= 1 << (1));
         vm->sstatus_spie && (*value |= 1 << (5));
         vm->sstatus_spp && (*value |= 1 << (8));
-        vm->sstatus_sum && (*value |= 1 << (18));
-        vm->sstatus_mxr && (*value |= 1 << (19));
+        vm->sstatus_sum && (*value |= 1UL << (18));
+        vm->sstatus_mxr && (*value |= 1UL << (19));
         break;
     case RV_CSR_SIE:
         *value = vm->sie;
@@ -487,8 +487,8 @@ static void csr_write(vm_t *vm, uint16_t addr, uint32_t value)
         vm->sstatus_sie = (value & (1 << (1))) != 0;
         vm->sstatus_spie = (value & (1 << (5))) != 0;
         vm->sstatus_spp = (value & (1 << (8))) != 0;
-        vm->sstatus_sum = (value & (1 << (18))) != 0;
-        vm->sstatus_mxr = (value & (1 << (19))) != 0;
+        vm->sstatus_sum = (value & (1UL << (18))) != 0;
+        vm->sstatus_mxr = (value & (1UL << (19))) != 0;
         break;
     case RV_CSR_SIE:
         value &= SIE_MASK;
@@ -620,7 +620,7 @@ static uint32_t op_mul(uint32_t insn, uint32_t a, uint32_t b)
     __builtin_unreachable();
 }
 
-#define NEG_BIT (insn & (1 << 30))
+#define NEG_BIT (insn & (1UL << 30))
 static uint32_t op_rv32i(uint32_t insn, bool is_reg, uint32_t a, uint32_t b)
 {
     /* TODO: Test ifunc7 zeros */
@@ -764,7 +764,7 @@ void vm_step(vm_t *vm)
     if ((vm->sstatus_sie || !vm->s_mode) && (vm->sip & vm->sie)) {
         uint32_t applicable = (vm->sip & vm->sie);
         uint8_t idx = ilog2(applicable);
-        vm->exc_cause = (1U << 31) | idx;
+        vm->exc_cause = (1UL << 31) | idx;
         vm->stval = 0;
         vm_trap(vm);
     }
@@ -786,7 +786,7 @@ void vm_step(vm_t *vm)
                  op_rv32i(insn, false, read_rs1(vm, insn), decode_i(insn)));
         break;
     case RV32_OP:
-        if (!(insn & (1 << 25)))
+        if (!(insn & (1UL << 25)))
             set_dest(
                 vm, insn,
                 op_rv32i(insn, true, read_rs1(vm, insn), read_rs2(vm, insn)));
