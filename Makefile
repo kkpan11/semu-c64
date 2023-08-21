@@ -9,7 +9,7 @@ OBJS_EXTRA :=
 OPTS :=
 
 # virtio-blk
-ENABLE_VIRTIOBLK ?= 1
+ENABLE_VIRTIOBLK ?= 0
 $(call set-feature, VIRTIOBLK)
 DISKIMG_FILE :=
 MKFS_EXT4 ?= mkfs.ext4
@@ -22,12 +22,12 @@ ifeq ($(call has, VIRTIOBLK), 1)
 	MKFS_EXT4 := $(shell which $$(brew --prefix e2fsprogs)/sbin/mkfs.ext4)
     endif
     ifndef MKFS_EXT4
-        $(error "No mkfs.ext4 found.")
+	$(error "No mkfs.ext4 found.")
     endif
 endif
 
 # virtio-net
-ENABLE_VIRTIONET ?= 1
+ENABLE_VIRTIONET ?= 0
 ifneq ($(UNAME_S),Linux)
     ENABLE_VIRTIONET := 0
 endif
@@ -93,6 +93,6 @@ clean:
 distclean: clean
 	$(Q)$(RM) minimal.dtb
 	$(Q)$(RM) Image rootfs.cpio
-	$(Q)$(RM) ext4.img 
+	$(Q)$(RM) ext4.img
 
 -include $(deps)
