@@ -836,9 +836,11 @@ void vm_step(vm_t *vm)
 
     vm->pc += 4;
     vm->insn_count++;
+#if !C64
+    /* Unlikely to overflow on such a slow platform ... */
     if (!vm->insn_count)
         vm->insn_count_hi++;
-
+#endif
     uint32_t insn_opcode = insn & MASK(7), value;
     switch (insn_opcode) {
     case RV32_OP_IMM:
