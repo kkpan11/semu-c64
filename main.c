@@ -425,10 +425,9 @@ static int semu_start(int argc, char **argv)
 #endif
 
     /* Emulate */
-    uint32_t peripheral_update_ctr = 0;
+    uint8_t peripheral_update_ctr = 0;
     while (!emu.stopped) {
         if (peripheral_update_ctr-- == 0) {
-            peripheral_update_ctr = 64;
 
             u8250_check_ready(&emu.uart);
             if (emu.uart.in_ready)
