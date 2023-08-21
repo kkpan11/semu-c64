@@ -1,12 +1,17 @@
+#if !C64
 #include <assert.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#else
+#include "reu.h"
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "device.h"
 #include "riscv.h"
@@ -17,22 +22,17 @@
  */
 static void mem_fetch(vm_t *vm, uint32_t addr, uint32_t *value)
 {
-    emu_state_t *data = (emu_state_t *) vm->priv;
     if (unlikely(addr >= RAM_SIZE)) {
         /* TODO: check for other regions */
         vm_set_exception(vm, RV_EXC_FETCH_FAULT, vm->exc_val);
         return;
     }
-    *value = data->ram[addr >> 2];
-}
-
-/* Similarly, only main memory pages can be used as page tables. */
-static uint32_t *mem_page_table(const vm_t *vm, uint32_t ppn)
-{
+#if C64
+    *value = loadword_reu(addr& 0xfffffffc);
+#else
     emu_state_t *data = (emu_state_t *) vm->priv;
-    if (ppn < (RAM_SIZE / RV_PAGE_SIZE))
-        return &data->ram[ppn << (RV_PAGE_SHIFT - 2)];
-    return NULL;
+    *value = data->ram[addr >> 2];
+#endif
 }
 
 static void emu_update_uart_interrupts(vm_t *vm)
