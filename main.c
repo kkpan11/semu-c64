@@ -442,13 +442,16 @@ static int semu_start(int argc, char **argv)
             if (emu.vblk.InterruptStatus)
                 emu_update_vblk_interrupts(&vm);
 #endif
-        }
+            if (vm.insn_count_hi > emu.timer_hi ||
+                (vm.insn_count_hi == emu.timer_hi && vm.insn_count > emu.timer_lo))
+                vm.sip |= RV_INT_STI_BIT;
+            else
+                vm.sip &= ~RV_INT_STI_BIT;
 
-        if (vm.insn_count_hi > emu.timer_hi ||
-            (vm.insn_count_hi == emu.timer_hi && vm.insn_count > emu.timer_lo))
-            vm.sip |= RV_INT_STI_BIT;
-        else
-            vm.sip &= ~RV_INT_STI_BIT;
+            /* Stop after fixed amount of instructions for performance testing or
+               to cross-check instruction traces etc. */
+            //if (vm.insn_count > 200000000) exit(0);
+        }
 
         vm_step(&vm);
         if (likely(!vm.error))
