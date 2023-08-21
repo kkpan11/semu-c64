@@ -244,6 +244,7 @@ static void handle_sbi_ecall(vm_t *vm)
     vm->error = ERR_NONE;
 }
 
+#if !C64
 struct mapper {
     char *addr;
     uint32_t size;
@@ -352,28 +353,42 @@ static void handle_options(int argc,
     if (!*dtb_file)
         *dtb_file = "minimal.dtb";
 }
+#endif
 
+emu_state_t emu;
+vm_t vm = {
+        .priv = &emu,
+        .mem_fetch = mem_fetch,
+        .mem_load = mem_load,
+        .mem_store = mem_store
+};
+
+__attribute__((nonreentrant))
 static int semu_start(int argc, char **argv)
 {
+#if C64
+    (void) argc;
+    (void) argv;
+#else
     char *kernel_file;
     char *dtb_file;
     char *initrd_file;
     char *disk_file;
     handle_options(argc, argv, &kernel_file, &dtb_file, &initrd_file,
                    &disk_file);
+    #endif
 
     /* Initialize the emulator */
-    emu_state_t emu;
     memset(&emu, 0, sizeof(emu));
 
-    vm_t vm = {
-        .priv = &emu,
-        .mem_fetch = mem_fetch,
-        .mem_load = mem_load,
-        .mem_store = mem_store,
-        .mem_page_table = mem_page_table,
-    };
+#if C64
+    printf("c-64 semu risc-v emulator\n");
+    printf("emu state begin: %p, size: %04x\n", &emu, sizeof(emu));
+    printf("vm state begin: %p, size: %04x\n", &vm, sizeof(vm));
+#endif
 
+    uint32_t dtb_addr = RAM_SIZE - INITRD_SIZE - DTB_SIZE; /* Device tree */
+#if !C64
     /* Set up RAM */
     emu.ram = mmap(NULL, RAM_SIZE, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -395,20 +410,20 @@ static int semu_start(int argc, char **argv)
     /* Load Linux kernel image */
     map_file(&ram_loc, kernel_file);
     /* Load at last 1 MiB to prevent kernel from overwriting it */
-    uint32_t dtb_addr = RAM_SIZE - DTB_SIZE; /* Device tree */
     ram_loc = ((char *) emu.ram) + dtb_addr;
     map_file(&ram_loc, dtb_file);
     /* Load optional initrd image at last 8 MiB before the dtb region to
      * prevent kernel from overwritting it
      */
     if (initrd_file) {
-        uint32_t initrd_addr = dtb_addr - INITRD_SIZE; /* Init RAM disk */
+        uint32_t initrd_addr = RAM_SIZE - INITRD_SIZE; /* Init RAM disk */
         ram_loc = ((char *) emu.ram) + initrd_addr;
         map_file(&ram_loc, initrd_file);
     }
 
     /* Hook for unmapping files */
     atexit(unmap_files);
+#endif
 
     /* Set up RISC-V hart */
     emu.timer_hi = emu.timer_lo = 0xFFFFFFFF;
@@ -419,6 +434,8 @@ static int semu_start(int argc, char **argv)
 
     /* Set up peripherals */
     emu.uart.in_fd = 0, emu.uart.out_fd = 1;
+
+#if !C64
     capture_keyboard_input(); /* set up uart */
 #if SEMU_HAS(VIRTIONET)
     if (!virtio_net_init(&(emu.vnet)))
@@ -428,6 +445,7 @@ static int semu_start(int argc, char **argv)
 #if SEMU_HAS(VIRTIOBLK)
     emu.vblk.ram = emu.ram;
     emu.disk = virtio_blk_init(&(emu.vblk), disk_file);
+#endif
 #endif
 
     /* Emulate */
