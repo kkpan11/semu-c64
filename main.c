@@ -376,6 +376,8 @@ static int semu_start(int argc, char **argv)
         fprintf(stderr, "Could not map RAM\n");
         return 2;
     }
+    memset(emu.ram, 0, RAM_SIZE);
+
     assert(!(((uintptr_t) emu.ram) & 0b11));
 
     /* *-----------------------------------------*
