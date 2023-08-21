@@ -1,10 +1,14 @@
 #include <errno.h>
+#if C64
+#include <cbm.h>
+#else
 #include <poll.h>
+#include <termios.h>
+#include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
 
 #include "device.h"
 #include "riscv.h"
@@ -14,6 +18,7 @@
 
 #define U8250_INT_THRE 1
 
+#if !C64
 static void reset_keyboard_input()
 {
     /* Re-enable echo, etc. on keyboard. */
@@ -22,10 +27,12 @@ static void reset_keyboard_input()
     term.c_lflag |= ICANON | ECHO;
     tcsetattr(0, TCSANOW, &term);
 }
+#endif
 
 /* Asynchronous communication to capture all keyboard input for the VM. */
 void capture_keyboard_input()
 {
+#if !C64
     /* Hook exit, because we want to re-enable keyboard. */
     atexit(reset_keyboard_input);
 
@@ -33,6 +40,7 @@ void capture_keyboard_input()
     tcgetattr(0, &term);
     term.c_lflag &= ~(ICANON | ECHO | ISIG); /* Disable echo as well */
     tcsetattr(0, TCSANOW, &term);
+#endif
 }
 
 void u8250_update_interrupts(u8250_state_t *uart)
@@ -56,17 +64,37 @@ void u8250_check_ready(u8250_state_t *uart)
 {
     if (uart->in_ready)
         return;
+#if C64
+    char cu = cbm_k_getin();
 
+    if (cu>='a' && cu<='z') cu=cu-'a'+'A';
+    else if (cu>='A' && cu<='Z') cu=cu-'A'+'a';
+    uart->in_char = cu;
+
+    if (uart->in_char != 0)
+        uart->in_ready = true;
+#else
     struct pollfd pfd = {uart->in_fd, POLLIN, 0};
     poll(&pfd, 1, 0);
     if (pfd.revents & POLLIN)
         uart->in_ready = true;
+#endif
 }
 
 static void u8250_handle_out(u8250_state_t *uart, uint8_t value)
 {
+#if C64
+    (void)(uart);
+    // FIXME: adhoc PETSCII char translation, also likely incomplete
+    char cu = value;
+    if (cu == '\r') return;
+    if (cu>='a' && cu<='z') cu=cu-'a'+'A';
+    else if (cu>='A' && cu<='Z') cu=cu-'A'+'a';
+    putchar(cu);
+#else
     if (write(uart->out_fd, &value, 1) < 1)
         fprintf(stderr, "failed to write UART output: %s\n", strerror(errno));
+#endif
 }
 
 static uint8_t u8250_handle_in(u8250_state_t *uart)
@@ -75,7 +103,12 @@ static uint8_t u8250_handle_in(u8250_state_t *uart)
     u8250_check_ready(uart);
     if (!uart->in_ready)
         return value;
-
+#if C64
+    else {
+        uart->in_ready=false;
+        return uart->in_char;
+    }
+#else
     if (read(uart->in_fd, &value, 1) < 0)
         fprintf(stderr, "failed to read UART input: %s\n", strerror(errno));
     uart->in_ready = false;
@@ -87,8 +120,8 @@ static uint8_t u8250_handle_in(u8250_state_t *uart)
             exit(0);
         }
     }
-
     return value;
+#endif
 }
 
 static void u8250_reg_read(u8250_state_t *uart, uint32_t addr, uint8_t *value)
