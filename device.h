@@ -5,21 +5,22 @@
 
 /* RAM */
 
-#define RAM_SIZE (512 * 1024 * 1024)
-#define DTB_SIZE (1 * 1024 * 1024)
-#define INITRD_SIZE (8 * 1024 * 1024)
+#define RAM_SIZE (16UL * 1024 * 1024)
+//#define DTB_SIZE (1 * 1024 * 1024)
+#define DTB_SIZE 16384
+#define INITRD_SIZE (4UL * 1024 * 1024)
 
 void ram_read(vm_t *core,
-              uint32_t *mem,
-              const uint32_t addr,
-              const uint8_t width,
-              uint32_t *value);
+	      uint32_t *mem,
+	      const uint32_t addr,
+	      const uint8_t width,
+	      uint32_t *value);
 
 void ram_write(vm_t *core,
-               uint32_t *mem,
-               const uint32_t addr,
-               const uint8_t width,
-               const uint32_t value);
+	       uint32_t *mem,
+	       const uint32_t addr,
+	       const uint8_t width,
+	       const uint32_t value);
 
 /* PLIC */
 
@@ -33,15 +34,15 @@ typedef struct {
 
 void plic_update_interrupts(vm_t *core, plic_state_t *plic);
 void plic_read(vm_t *core,
-               plic_state_t *plic,
-               uint32_t addr,
-               uint8_t width,
-               uint32_t *value);
+	       plic_state_t *plic,
+	       uint32_t addr,
+	       uint8_t width,
+	       uint32_t *value);
 void plic_write(vm_t *core,
-                plic_state_t *plic,
-                uint32_t addr,
-                uint8_t width,
-                uint32_t value);
+		plic_state_t *plic,
+		uint32_t addr,
+		uint8_t width,
+		uint32_t value);
 /* UART */
 
 #define IRQ_UART 1
@@ -61,15 +62,15 @@ typedef struct {
 
 void u8250_update_interrupts(u8250_state_t *uart);
 void u8250_read(vm_t *core,
-                u8250_state_t *uart,
-                uint32_t addr,
-                uint8_t width,
-                uint32_t *value);
+		u8250_state_t *uart,
+		uint32_t addr,
+		uint8_t width,
+		uint32_t *value);
 void u8250_write(vm_t *core,
-                 u8250_state_t *uart,
-                 uint32_t addr,
-                 uint8_t width,
-                 uint32_t value);
+		 u8250_state_t *uart,
+		 uint32_t addr,
+		 uint8_t width,
+		 uint32_t value);
 void u8250_check_ready(u8250_state_t *uart);
 void capture_keyboard_input();
 
@@ -108,15 +109,15 @@ typedef struct {
 } virtio_net_state_t;
 
 void virtio_net_read(vm_t *core,
-                     virtio_net_state_t *vnet,
-                     uint32_t addr,
-                     uint8_t width,
-                     uint32_t *value);
+		     virtio_net_state_t *vnet,
+		     uint32_t addr,
+		     uint8_t width,
+		     uint32_t *value);
 void virtio_net_write(vm_t *core,
-                      virtio_net_state_t *vnet,
-                      uint32_t addr,
-                      uint8_t width,
-                      uint32_t value);
+		      virtio_net_state_t *vnet,
+		      uint32_t addr,
+		      uint8_t width,
+		      uint32_t value);
 void virtio_net_refresh_queue(virtio_net_state_t *vnet);
 
 bool virtio_net_init(virtio_net_state_t *vnet);
@@ -157,16 +158,16 @@ typedef struct {
 } virtio_blk_state_t;
 
 void virtio_blk_read(vm_t *vm,
-                     virtio_blk_state_t *vblk,
-                     uint32_t addr,
-                     uint8_t width,
-                     uint32_t *value);
+		     virtio_blk_state_t *vblk,
+		     uint32_t addr,
+		     uint8_t width,
+		     uint32_t *value);
 
 void virtio_blk_write(vm_t *vm,
-                      virtio_blk_state_t *vblk,
-                      uint32_t addr,
-                      uint8_t width,
-                      uint32_t value);
+		      virtio_blk_state_t *vblk,
+		      uint32_t addr,
+		      uint8_t width,
+		      uint32_t value);
 
 uint32_t *virtio_blk_init(virtio_blk_state_t *vblk, char *disk_file);
 #endif /* SEMU_HAS(VIRTIOBLK) */
