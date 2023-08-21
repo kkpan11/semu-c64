@@ -94,7 +94,7 @@ struct __vm_internal {
     uint32_t sscratch; /**< misc */
     uint32_t scounteren;
     uint32_t satp; /**< MMU */
-    uint32_t *page_table;
+    int32_t page_table_addr;
 
     void *priv; /**< environment supplied */
 
@@ -104,12 +104,6 @@ struct __vm_internal {
     void (*mem_fetch)(vm_t *vm, uint32_t addr, uint32_t *value);
     void (*mem_load)(vm_t *vm, uint32_t addr, uint8_t width, uint32_t *value);
     void (*mem_store)(vm_t *vm, uint32_t addr, uint8_t width, uint32_t value);
-
-    /* Pre-validate whether the required page number can accommodate a page
-     * table. If it is not a valid page, it returns NULL. The function returns
-     * a uint32_t * to the page if valid.
-     */
-    uint32_t *(*mem_page_table)(const vm_t *vm, uint32_t ppn);
 };
 
 /* Emulate the next instruction. This is a no-op if the error is already set. */

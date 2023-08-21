@@ -407,6 +407,7 @@ static int semu_start(int argc, char **argv)
 
     /* Set up RISC-V hart */
     emu.timer_hi = emu.timer_lo = 0xFFFFFFFF;
+    vm.page_table_addr = 0;
     vm.s_mode = true;
     vm.x_regs[RV_R_A0] = 0; /* hart ID. i.e., cpuid */
     vm.x_regs[RV_R_A1] = dtb_addr;

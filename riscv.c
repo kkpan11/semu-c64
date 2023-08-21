@@ -3,6 +3,10 @@
 #include "riscv.h"
 #include "riscv_private.h"
 
+static bool mmu_fetch_cache_valid = false;
+static bool mmu_load_cache_valid = false;
+static bool mmu_store_cache_valid = false;
+
 /* Return the string representation of an error code identifier */
 static const char *vm_error_str(vm_error_t err)
 {
@@ -169,27 +173,39 @@ static inline uint32_t read_rs2(const vm_t *vm, uint32_t insn)
 
 /* virtual addressing */
 
+static int32_t mem_page_table_addr(uint32_t ppn)
+{
+    if (ppn < (RAM_SIZE / RV_PAGE_SIZE))
+        return (ppn << RV_PAGE_SHIFT);
+    return 0;
+}
+
 /* Pre-verify the root page table to minimize page table access during
  * translation time.
  */
 static void mmu_set(vm_t *vm, uint32_t satp)
 {
+    mmu_fetch_cache_valid = false;
+    mmu_load_cache_valid = false;
+    mmu_store_cache_valid = false;
     if (satp >> 31) {
-        uint32_t *page_table = vm->mem_page_table(vm, satp & MASK(22));
-        if (!page_table)
+        int32_t page_table_addr = mem_page_table_addr(satp & MASK(22));
+        if (!page_table_addr)
             return;
-        vm->page_table = page_table;
+        vm->page_table_addr = page_table_addr;
         satp &= ~(MASK(9) << 22);
     } else {
-        vm->page_table = NULL;
+        vm->page_table_addr = 0;
         satp = 0;
     }
     vm->satp = satp;
 }
 
-#define PTE_ITER(page_table, vpn, additional_checks)    \
-    *pte = &(page_table)[vpn];                          \
-    switch ((**pte) & MASK(4)) {                        \
+
+#define PTE_ITER(ptea, vpn, additional_checks)          \
+    *ptea += 4*((vpn));                                 \
+    vm->mem_fetch(vm, *ptea, pte);                      \
+    switch ((*pte) & MASK(4)) {                         \
     case 0b0001:                                        \
         break; /* pointer to next level */              \
     case 0b0011:                                        \
@@ -197,12 +213,12 @@ static void mmu_set(vm_t *vm, uint32_t satp)
     case 0b1001:                                        \
     case 0b1011:                                        \
     case 0b1111:                                        \
-        *ppn = (**pte) >> 10;                           \
+        *ppn = (*pte) >> 10;                            \
         additional_checks return true; /* leaf entry */ \
     case 0b0101:                                        \
     case 0b1101:                                        \
     default:                                            \
-        *pte = NULL;                                    \
+        *ptea = 0;                                      \
         return true; /* not valid */                    \
     }
 
@@ -213,20 +229,22 @@ static void mmu_set(vm_t *vm, uint32_t satp)
  *   - in case of valid leaf: set *pte and *ppn
  *   - none found (page fault): set *pte to NULL
  */
-static bool mmu_lookup(const vm_t *vm,
+static bool mmu_lookup(vm_t *vm,
                        uint32_t vpn,
-                       uint32_t **pte,
+                       int32_t *ptea,
+                       uint32_t *pte,
                        uint32_t *ppn)
 {
-    PTE_ITER(vm->page_table, vpn >> 10,
+    *ptea = vm->page_table_addr;
+    PTE_ITER(ptea, vpn >> 10,
              if (unlikely((*ppn) & MASK(10))) /* misaligned superpage */
-                 *pte = NULL;
+                 *ptea = 0;
              else *ppn |= vpn & MASK(10);)
-    uint32_t *page_table = vm->mem_page_table(vm, (**pte) >> 10);
-    if (!page_table)
+    *ptea = mem_page_table_addr((*pte) >> 10);
+    if (!*ptea)
         return false;
-    PTE_ITER(page_table, vpn & MASK(10), )
-    *pte = NULL;
+    PTE_ITER(ptea, vpn & MASK(10), )
+    *ptea = 0;
     return true;
 }
 
@@ -238,23 +256,29 @@ static void mmu_translate(vm_t *vm,
                           const uint8_t fault,
                           const uint8_t pfault)
 {
+    (void)set_bits;
     /* NOTE: save virtual address, for physical accesses, to set exception. */
     vm->exc_val = *addr;
-    if (!vm->page_table)
+    if (!vm->page_table_addr)
         return;
 
-    uint32_t *pte_ref;
+    int32_t ptea;
+    uint32_t pte;
     uint32_t ppn;
-    bool ok = mmu_lookup(vm, (*addr) >> RV_PAGE_SHIFT, &pte_ref, &ppn);
+
+    bool ok = mmu_lookup(vm, (*addr) >> RV_PAGE_SHIFT, &ptea, &pte, &ppn);
+
     if (unlikely(!ok)) {
         vm_set_exception(vm, fault, *addr);
         return;
     }
 
-    uint32_t pte;
-    if (!(pte_ref /* PTE lookup was successful */ &&
-          !(ppn >> 20) /* PPN is valid */ &&
-          (pte = *pte_ref, pte & access_bits) /* access type is allowed */ &&
+    if (!(ptea /* PTE lookup was successful */ &&
+          !(ppn >>20))  /* PPN is valid */) {
+        vm_set_exception(vm, pfault, *addr);
+        return;
+    }
+    if (!((pte & access_bits) /* access type is allowed */ &&
           (!(pte & (1 << 4)) == vm->s_mode ||
            skip_privilege_test) /* privilege matches */
           )) {
@@ -262,38 +286,63 @@ static void mmu_translate(vm_t *vm,
         return;
     }
 
+    // FIXME: Seems to be OK with spec (and seems to work) to just check the bits but not to update anything, but double-check this again...
+/*
     uint32_t new_pte = pte | set_bits;
     if (new_pte != pte)
-        *pte_ref = new_pte;
-
+        vm->mem_store(vm, vm->page_table_addr, RV_MEM_SW, new_pte);
+*/
     *addr = ((*addr) & MASK(RV_PAGE_SHIFT)) | (ppn << RV_PAGE_SHIFT);
 }
 
 static void mmu_fence(vm_t *vm UNUSED, uint32_t insn UNUSED)
 {
-    /* no-op for now */
+    mmu_fetch_cache_valid = false;
+    mmu_load_cache_valid = false;
+    mmu_store_cache_valid = false;
 }
 
 static void mmu_fetch(vm_t *vm, uint32_t addr, uint32_t *value)
 {
-    mmu_translate(vm, &addr, (1 << 3), (1 << 6), false, RV_EXC_FETCH_FAULT,
-                  RV_EXC_FETCH_PFAULT);
-    if (vm->error)
-        return;
+    static uint32_t addr_from, addr_to;
+    const uint32_t pagepart = addr & ~MASK(RV_PAGE_SHIFT);
+    if (mmu_fetch_cache_valid && pagepart == addr_from) {
+        addr=(addr_to | (addr & MASK(RV_PAGE_SHIFT)));
+    } else {
+        mmu_fetch_cache_valid = false;
+        addr_from = addr & ~MASK(RV_PAGE_SHIFT);
+        mmu_translate(vm, &addr, (1 << 3), (1 << 6), false, RV_EXC_FETCH_FAULT,
+                      RV_EXC_FETCH_PFAULT);
+        if (vm->error)
+            return;
+        mmu_fetch_cache_valid = true;
+        addr_to = addr & ~MASK(RV_PAGE_SHIFT);
+    }
     vm->mem_fetch(vm, addr, value);
 }
 
+__attribute__((nonreentrant))
 static void mmu_load(vm_t *vm,
                      uint32_t addr,
                      uint8_t width,
                      uint32_t *value,
                      bool reserved)
 {
-    mmu_translate(vm, &addr, (1 << 1) | (vm->sstatus_mxr ? (1 << 3) : 0),
-                  (1 << 6), vm->sstatus_sum && vm->s_mode, RV_EXC_LOAD_FAULT,
-                  RV_EXC_LOAD_PFAULT);
-    if (vm->error)
-        return;
+    static uint32_t addr_from, addr_to;
+    const uint32_t pagepart = addr & ~MASK(RV_PAGE_SHIFT);
+    if (mmu_load_cache_valid && pagepart == addr_from) {
+        addr=(addr_to | (addr & MASK(RV_PAGE_SHIFT)));
+    } else {
+        mmu_load_cache_valid = false;
+        addr_from = addr & ~MASK(RV_PAGE_SHIFT);
+        mmu_translate(vm, &addr, (1 << 1) | (vm->sstatus_mxr ? (1 << 3) : 0),
+                      (1 << 6), vm->sstatus_sum && vm->s_mode, RV_EXC_LOAD_FAULT,
+                      RV_EXC_LOAD_PFAULT);
+        if (vm->error)
+            return;
+        mmu_load_cache_valid = true;
+        addr_to = addr & ~MASK(RV_PAGE_SHIFT);
+    }
     vm->mem_load(vm, addr, width, value);
     if (vm->error)
         return;
@@ -308,12 +357,21 @@ static bool mmu_store(vm_t *vm,
                       uint32_t value,
                       bool cond)
 {
-    mmu_translate(vm, &addr, (1 << 2), (1 << 6) | (1 << 7),
-                  vm->sstatus_sum && vm->s_mode, RV_EXC_STORE_FAULT,
-                  RV_EXC_STORE_PFAULT);
-    if (vm->error)
-        return false;
-
+    static uint32_t addr_from, addr_to;
+    const uint32_t pagepart = addr & ~MASK(RV_PAGE_SHIFT);
+    if (mmu_store_cache_valid && pagepart == addr_from) {
+        addr=(addr_to | (addr & MASK(RV_PAGE_SHIFT)));
+    } else {
+        mmu_store_cache_valid = false;
+        addr_from = addr & ~MASK(RV_PAGE_SHIFT);
+        mmu_translate(vm, &addr, (1 << 2), (1 << 6) | (1 << 7),
+                      vm->sstatus_sum && vm->s_mode, RV_EXC_STORE_FAULT,
+                      RV_EXC_STORE_PFAULT);
+        if (vm->error)
+            return false;
+        mmu_store_cache_valid = true;
+        addr_to = addr & ~MASK(RV_PAGE_SHIFT);
+    }
     if (unlikely(cond)) {
         if (vm->lr_reservation != (addr | 1))
             return false;
