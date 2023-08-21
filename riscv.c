@@ -146,7 +146,9 @@ static inline uint8_t decode_rs2(uint32_t insn)
 /* decoded funct3 field */
 static inline uint8_t decode_func3(uint32_t insn)
 {
-    return (insn & FR_FUNCT3) >> 12;
+    uint8_t *t = (uint8_t*)(&insn);
+    //return (insn & FR_FUNCT3) >> 12;
+    return (t[1] >> 4)&7;
 }
 
 /* decoded funct5 field */
