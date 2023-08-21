@@ -57,6 +57,10 @@ OBJS := \
 	main.o \
 	$(OBJS_EXTRA)
 
+ifeq ($(C64), 1)
+OBJS += reu.o
+endif
+
 deps := $(OBJS:%.o=.%.o.d)
 
 $(BIN): $(OBJS)
