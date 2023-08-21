@@ -1,5 +1,5 @@
 include mk/common.mk
-C64=0
+C64=1
 
 ifeq ($(C64), 1)
 
