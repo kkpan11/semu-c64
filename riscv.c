@@ -1,5 +1,8 @@
+#include "device.h"
+#if !C64
+#include <assert.h>
+#endif
 #include <stdio.h>
-
 #include "riscv.h"
 #include "riscv_private.h"
 
@@ -45,8 +48,13 @@ static const char *vm_exc_cause_str(uint32_t err)
 
 void vm_error_report(const vm_t *vm)
 {
+#if C64
+    printf("vm error %s: %s. val=%#lx\n", vm_error_str(vm->error),
+            vm_exc_cause_str(vm->exc_cause), vm->exc_val);
+#else
     fprintf(stderr, "vm error %s: %s. val=%#x\n", vm_error_str(vm->error),
             vm_exc_cause_str(vm->exc_cause), vm->exc_val);
+#endif
 }
 
 /* Instruction decoding */

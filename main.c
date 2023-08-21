@@ -175,8 +175,13 @@ static inline sbi_ret_t handle_sbi_ecall_RST(vm_t *vm, int32_t fid)
     emu_state_t *data = (emu_state_t *) vm->priv;
     switch (fid) {
     case SBI_RST__SYSTEM_RESET:
+#if !C64
         fprintf(stderr, "system reset: type=%u, reason=%u\n",
                 vm->x_regs[RV_R_A0], vm->x_regs[RV_R_A1]);
+#else
+        printf("system reset: type=%lu, reason=%lu\n",
+                vm->x_regs[RV_R_A0], vm->x_regs[RV_R_A1]);
+#endif
         data->stopped = true;
         return (sbi_ret_t){SBI_SUCCESS, 0};
     default:
