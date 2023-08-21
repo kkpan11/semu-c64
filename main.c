@@ -477,6 +477,7 @@ static int semu_start(int argc, char **argv)
     return 0;
 }
 
+__attribute__((nonreentrant))
 int main(int argc, char **argv)
 {
     return semu_start(argc, argv);
