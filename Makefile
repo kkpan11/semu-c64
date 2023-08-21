@@ -1,7 +1,17 @@
 include mk/common.mk
+C64=0
+
+ifeq ($(C64), 1)
+
+CC = mos-c64-clang
+CFLAGS := -Os -g -Wall -Wextra -flto -DC64=1
+else
 
 CC ?= gcc
-CFLAGS := -O2 -g -Wall -Wextra
+CFLAGS := -O2 -g -Wall -Wextra -DC64=0
+
+endif
+
 CFLAGS += -include common.h
 
 OBJS_EXTRA :=
