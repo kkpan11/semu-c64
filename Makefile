@@ -1,4 +1,6 @@
 include mk/common.mk
+STOP_AT_LOGIN=0
+
 C64=1
 
 ifeq ($(C64), 1)
@@ -10,6 +12,10 @@ else
 CC ?= gcc
 CFLAGS := -O2 -g -Wall -Wextra -DC64=0
 
+endif
+
+ifeq ($(STOP_AT_LOGIN), 1)
+CFLAGS += -DSTOP_AT_LOGIN=1
 endif
 
 CFLAGS += -include common.h

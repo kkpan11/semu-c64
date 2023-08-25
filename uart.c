@@ -81,8 +81,32 @@ void u8250_check_ready(u8250_state_t *uart)
 #endif
 }
 
+extern vm_t vm;
+
+char *login_stop_test="buildroot login:";
+
+static void login_stop(uint8_t value) {
+    static char *ptr = NULL;
+    if (ptr == NULL) ptr = login_stop_test;
+    if (*ptr == value) {
+        ptr++;
+    } else ptr = login_stop_test;
+    if (!*ptr) {
+        printf("\n\nVM RISCV insn count: %lu\n", (long unsigned)(vm.insn_count));
+#if C64
+        void (*reset_vect)() = (void*)0xfce2;
+        reset_vect();
+#else
+        exit(0);
+#endif
+    }
+}
+
 static void u8250_handle_out(u8250_state_t *uart, uint8_t value)
 {
+#if STOP_AT_LOGIN
+    login_stop(value);
+#endif
 #if C64
     (void)(uart);
     // FIXME: adhoc PETSCII char translation, also likely incomplete
