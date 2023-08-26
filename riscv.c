@@ -851,13 +851,13 @@ void vm_step(vm_t *vm)
 
     uint8_t* pcl = (uint8_t*)(&_zp_vm_pc);
     *pcl+=4;
-    if (!*pcl) _zp_vm_pc+=256;
+    if (unlikely(!*pcl)) _zp_vm_pc+=256;
 
     //_zp_vm_pc += 4;
     //
     uint8_t* icl = (uint8_t*)(&_zp_vm_insn_count);
     (*icl)++;
-    if(!*icl) {
+    if (unlikely(!*icl)) {
         _zp_vm_insn_count+=256;
         if (!_zp_vm_insn_count)
             _zp_vm_insn_count_hi++;
