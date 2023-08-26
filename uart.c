@@ -92,7 +92,7 @@ static void login_stop(uint8_t value) {
         ptr++;
     } else ptr = login_stop_test;
     if (!*ptr) {
-        printf("\n\nVM RISCV insn count: %lu\n", (long unsigned)(vm.insn_count));
+        printf("\n\nVM RISCV insn count: %lu\n", (long unsigned)(_zp_vm_insn_count));
 #if C64
         void (*reset_vect)() = (void*)0xfce2;
         reset_vect();

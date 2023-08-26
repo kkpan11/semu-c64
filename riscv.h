@@ -13,7 +13,7 @@
  *    advanced, environment calls can be handled by simply clearing the
  *    error after completing the operation.
  *  - Faults: when handling faults, it is important to set
- *    vm->pc = vm->current_pc so that the instruction can be retried.
+ *    _zp_vm_pc = _zp_vm_current_pc so that the instruction can be retried.
  *  - Traps: exceptions can be delegated to the emulated code in the form
  *    of S-mode traps by invoking "vm_trap()". This function takes care
  *    of clearing the error.
@@ -37,9 +37,9 @@ typedef enum {
  * Once the emulator is set up, execute the emulation loop by calling
  * "vm_step()" repeatedly. Each call attempts to execute a single instruction.
  *
- * If the execution completes successfully, the "vm->error" field will be set
+ * If the execution completes successfully, the "_zp_vm_error" field will be set
  * to ERR_NONE. However, if an error occurs during execution, the emulator will
- * halt and the "vm->error" field will provide information about the error. It
+ * halt and the "_zp_vm_error" field will provide information about the error. It
  * is important to handle the emulation error before calling "vm_step()" again;
  * otherwise, it will not execute any instructions. The possible errors are
  * described above for reference.
@@ -53,23 +53,23 @@ struct __vm_internal {
     uint32_t lr_reservation;
 
     /* Assumed to contain an aligned address at all times */
-    uint32_t pc;
+    //uint32_t pc;
 
     /* Address of last instruction that began execution */
-    uint32_t current_pc;
+    //uint32_t current_pc;
 
     /* 'instructions executed' 64-bit counter serves as a real-time clock,
      * instruction-retired counter, and cycle counter. It is currently
      * utilized in these capacities and should not be modified between logical
      * resets.
      */
-    uint32_t insn_count, insn_count_hi;
+    //uint32_t insn_count, insn_count_hi;
 
     /* Instruction execution state must be set to "NONE" for instruction
      * execution to continue. If the state is not "NONE," the vm_step()
      * function will exit.
      */
-    vm_error_t error;
+    //vm_error_t error;
 
     /* If the error value is ERR_EXCEPTION, the specified values will be used
      * for the scause and stval registers if they are turned into a trap.
@@ -98,7 +98,7 @@ struct __vm_internal {
 
     void *priv; /**< environment supplied */
 
-    /* Memory access sets the vm->error to indicate failure. On successful
+    /* Memory access sets the _zp_vm_error to indicate failure. On successful
      * access, it reads or writes the specified "value".
      */
     void (*mem_fetch)(vm_t *vm, uint32_t addr, uint32_t *value);
@@ -109,7 +109,7 @@ struct __vm_internal {
 /* Emulate the next instruction. This is a no-op if the error is already set. */
 void vm_step(vm_t *vm);
 
-/* Raise a RISC-V exception. This is equivalent to setting vm->error to
+/* Raise a RISC-V exception. This is equivalent to setting _zp_vm_error to
  * ERR_EXCEPTION and setting the accompanying fields. It is provided as
  * a function for convenience and to prevent mistakes such as forgetting to
  * set a field.
@@ -117,10 +117,16 @@ void vm_step(vm_t *vm);
 void vm_set_exception(vm_t *vm, uint32_t cause, uint32_t val);
 
 /* Delegate the currently set exception to S-mode as a trap. This function does
- * not check if vm->error is EXC_EXCEPTION; it assumes that "exc_cause" and
- * "exc_val" are correctly set. It sets vm->error to ERR_NONE.
+ * not check if _zp_vm_error is EXC_EXCEPTION; it assumes that "exc_cause" and
+ * "exc_val" are correctly set. It sets _zp_vm_error to ERR_NONE.
  */
 void vm_trap(vm_t *vm);
 
 /* Return a readable description for a RISC-V exception cause */
 void vm_error_report(const vm_t *vm);
+
+extern vm_error_t _zp_vm_error;
+extern uint32_t _zp_vm_current_pc;
+extern uint32_t _zp_vm_pc;
+extern uint32_t _zp_vm_insn_count;
+extern uint32_t _zp_vm_insn_count_hi;

@@ -241,7 +241,7 @@ static void handle_sbi_ecall(vm_t *vm)
     vm->x_regs[RV_R_A1] = (uint32_t) ret.value;
 
     /* Clear error to allow execution to continue */
-    vm->error = ERR_NONE;
+    _zp_vm_error = ERR_NONE;
 }
 
 #if !C64
@@ -468,8 +468,8 @@ static int semu_start(int argc, char **argv)
             if (emu.vblk.InterruptStatus)
                 emu_update_vblk_interrupts(&vm);
 #endif
-            if (vm.insn_count_hi > emu.timer_hi ||
-                (vm.insn_count_hi == emu.timer_hi && vm.insn_count > emu.timer_lo))
+            if (_zp_vm_insn_count_hi > emu.timer_hi ||
+                (_zp_vm_insn_count_hi == emu.timer_hi && _zp_vm_insn_count > emu.timer_lo))
                 vm.sip |= RV_INT_STI_BIT;
             else
                 vm.sip &= ~RV_INT_STI_BIT;
@@ -480,15 +480,15 @@ static int semu_start(int argc, char **argv)
         }
 
         vm_step(&vm);
-        if (likely(!vm.error))
+        if (likely(!_zp_vm_error))
             continue;
 
-        if (vm.error == ERR_EXCEPTION && vm.exc_cause == RV_EXC_ECALL_S) {
+        if (_zp_vm_error == ERR_EXCEPTION && vm.exc_cause == RV_EXC_ECALL_S) {
             handle_sbi_ecall(&vm);
             continue;
         }
 
-        if (vm.error == ERR_EXCEPTION) {
+        if (_zp_vm_error == ERR_EXCEPTION) {
             vm_trap(&vm);
             continue;
         }

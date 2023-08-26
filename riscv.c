@@ -10,6 +10,13 @@ static bool mmu_fetch_cache_valid = false;
 static bool mmu_load_cache_valid = false;
 static bool mmu_store_cache_valid = false;
 
+vm_error_t _zp_vm_error __attribute__((section(".zp.bss")));
+uint32_t _zp_vm_current_pc __attribute__((section(".zp.bss")));
+uint32_t _zp_vm_pc  __attribute__((section(".zp.bss")));
+uint32_t _zp_vm_insn_count  __attribute__((section(".zp.bss")));
+uint32_t _zp_vm_insn_count_hi;
+
+
 /* Return the string representation of an error code identifier */
 static const char *vm_error_str(vm_error_t err)
 {
@@ -49,10 +56,10 @@ static const char *vm_exc_cause_str(uint32_t err)
 void vm_error_report(const vm_t *vm)
 {
 #if C64
-    printf("vm error %s: %s. val=%#lx\n", vm_error_str(vm->error),
+    printf("vm error %s: %s. val=%#lx\n", vm_error_str(_zp_vm_error),
             vm_exc_cause_str(vm->exc_cause), vm->exc_val);
 #else
-    fprintf(stderr, "vm error %s: %s. val=%#x\n", vm_error_str(vm->error),
+    fprintf(stderr, "vm error %s: %s. val=%#x\n", vm_error_str(_zp_vm_error),
             vm_exc_cause_str(vm->exc_cause), vm->exc_val);
 #endif
 }
@@ -321,7 +328,7 @@ static void mmu_fetch(vm_t *vm, uint32_t addr, uint32_t *value)
         addr_from = addr & ~MASK(RV_PAGE_SHIFT);
         mmu_translate(vm, &addr, (1 << 3), (1 << 6), false, RV_EXC_FETCH_FAULT,
                       RV_EXC_FETCH_PFAULT);
-        if (vm->error)
+        if (_zp_vm_error)
             return;
         mmu_fetch_cache_valid = true;
         addr_to = addr & ~MASK(RV_PAGE_SHIFT);
@@ -346,13 +353,13 @@ static void mmu_load(vm_t *vm,
         mmu_translate(vm, &addr, (1 << 1) | (vm->sstatus_mxr ? (1 << 3) : 0),
                       (1 << 6), vm->sstatus_sum && vm->s_mode, RV_EXC_LOAD_FAULT,
                       RV_EXC_LOAD_PFAULT);
-        if (vm->error)
+        if (_zp_vm_error)
             return;
         mmu_load_cache_valid = true;
         addr_to = addr & ~MASK(RV_PAGE_SHIFT);
     }
     vm->mem_load(vm, addr, width, value);
-    if (vm->error)
+    if (_zp_vm_error)
         return;
 
     if (unlikely(reserved))
@@ -375,7 +382,7 @@ static bool mmu_store(vm_t *vm,
         mmu_translate(vm, &addr, (1 << 2), (1 << 6) | (1 << 7),
                       vm->sstatus_sum && vm->s_mode, RV_EXC_STORE_FAULT,
                       RV_EXC_STORE_PFAULT);
-        if (vm->error)
+        if (_zp_vm_error)
             return false;
         mmu_store_cache_valid = true;
         addr_to = addr & ~MASK(RV_PAGE_SHIFT);
@@ -397,7 +404,7 @@ static bool mmu_store(vm_t *vm,
 
 void vm_set_exception(vm_t *vm, uint32_t cause, uint32_t val)
 {
-    vm->error = ERR_EXCEPTION;
+    _zp_vm_error = ERR_EXCEPTION;
     vm->exc_cause = cause;
     vm->exc_val = val;
 }
@@ -411,22 +418,22 @@ void vm_trap(vm_t *vm)
     /* Save to stack */
     vm->sstatus_spie = vm->sstatus_sie;
     vm->sstatus_spp = vm->s_mode;
-    vm->sepc = vm->current_pc;
+    vm->sepc = _zp_vm_current_pc;
 
     /* Set */
     vm->sstatus_sie = false;
     vm->s_mode = true;
-    vm->pc = vm->stvec_addr;
+    _zp_vm_pc = vm->stvec_addr;
     if (vm->stvec_vectored)
-        vm->pc += (vm->scause & MASK(31)) * 4;
+        _zp_vm_pc += (vm->scause & MASK(31)) * 4;
 
-    vm->error = ERR_NONE;
+    _zp_vm_error = ERR_NONE;
 }
 
 static void op_sret(vm_t *vm)
 {
     /* Restore from stack */
-    vm->pc = vm->sepc;
+    _zp_vm_pc = vm->sepc;
     vm->s_mode = vm->sstatus_spp;
     vm->sstatus_sie = vm->sstatus_spie;
 
@@ -447,7 +454,7 @@ static void op_privileged(vm_t *vm, uint32_t insn)
     }
     switch (decode_i_unsigned(insn)) {
     case 0b000000000001: /* PRIV_EBREAK */
-        vm_set_exception(vm, RV_EXC_BREAKPOINT, vm->current_pc);
+        vm_set_exception(vm, RV_EXC_BREAKPOINT, _zp_vm_current_pc);
         break;
     case 0b000000000000: /* PRIV_ECALL */
         vm_set_exception(vm, vm->s_mode ? RV_EXC_ECALL_S : RV_EXC_ECALL_U, 0);
@@ -490,7 +497,7 @@ static void csr_read(vm_t *vm, uint16_t addr, uint32_t *value)
              * and writes should set the value after the increment. However,
              * we do not expose any way to write the counters.
              */
-            *value = (addr & (1 << 7)) ? vm->insn_count_hi : vm->insn_count;
+            *value = (addr & (1 << 7)) ? _zp_vm_insn_count_hi : _zp_vm_insn_count;
         }
         return;
     }
@@ -600,7 +607,7 @@ static void op_csr_rw(vm_t *vm, uint32_t insn, uint16_t csr, uint32_t wvalue)
     if (decode_rd(insn)) {
         uint32_t value;
         csr_read(vm, csr, &value);
-        if (unlikely(vm->error))
+        if (unlikely(_zp_vm_error))
             return;
         set_dest(vm, insn, value);
     }
@@ -615,7 +622,7 @@ static void op_csr_cs(vm_t *vm,
 {
     uint32_t value;
     csr_read(vm, csr, &value);
-    if (unlikely(vm->error))
+    if (unlikely(_zp_vm_error))
         return;
     set_dest(vm, insn, value);
     if (decode_rs1(insn))
@@ -740,7 +747,7 @@ static void do_jump(vm_t *vm, uint32_t addr)
     if (unlikely(addr & 0b11))
         vm_set_exception(vm, RV_EXC_PC_MISALIGN, addr);
     else
-        vm->pc = addr;
+        _zp_vm_pc = addr;
 }
 
 static void op_jump_link(vm_t *vm, uint32_t insn, uint32_t addr)
@@ -748,8 +755,8 @@ static void op_jump_link(vm_t *vm, uint32_t insn, uint32_t addr)
     if (unlikely(addr & 0b11)) {
         vm_set_exception(vm, RV_EXC_PC_MISALIGN, addr);
     } else {
-        set_dest(vm, insn, vm->pc);
-        vm->pc = addr;
+        set_dest(vm, insn, _zp_vm_pc);
+        _zp_vm_pc = addr;
     }
 }
 
@@ -757,7 +764,7 @@ static void op_jump_link(vm_t *vm, uint32_t insn, uint32_t addr)
     do {                                                      \
         value2 = read_rs2(vm, insn);                          \
         mmu_load(vm, addr, RV_MEM_LW, &value, false);         \
-        if (vm->error)                                        \
+        if (_zp_vm_error)                                        \
             return;                                           \
         set_dest(vm, insn, value);                            \
         mmu_store(vm, addr, RV_MEM_SW, (STORED_EXPR), false); \
@@ -776,7 +783,7 @@ static void op_amo(vm_t *vm, uint32_t insn)
         if (decode_rs2(insn))
             return vm_set_exception(vm, RV_EXC_ILLEGAL_INSTR, 0);
         mmu_load(vm, addr, RV_MEM_LW, &value, true);
-        if (vm->error)
+        if (_zp_vm_error)
             return;
         set_dest(vm, insn, value);
         break;
@@ -784,7 +791,7 @@ static void op_amo(vm_t *vm, uint32_t insn)
         if (addr & 0b11)
             return vm_set_exception(vm, RV_EXC_STORE_MISALIGN, addr);
         bool ok = mmu_store(vm, addr, RV_MEM_SW, read_rs2(vm, insn), true);
-        if (vm->error)
+        if (_zp_vm_error)
             return;
         set_dest(vm, insn, ok ? 0 : 1);
         break;
@@ -824,10 +831,10 @@ static void op_amo(vm_t *vm, uint32_t insn)
 
 void vm_step(vm_t *vm)
 {
-    if (unlikely(vm->error))
+    if (unlikely(_zp_vm_error))
         return;
 
-    vm->current_pc = vm->pc;
+    _zp_vm_current_pc = _zp_vm_pc;
 
     if ((vm->sstatus_sie || !vm->s_mode) && (vm->sip & vm->sie)) {
         uint32_t applicable = (vm->sip & vm->sie);
@@ -838,24 +845,24 @@ void vm_step(vm_t *vm)
     }
 
     uint32_t insn;
-    mmu_fetch(vm, vm->pc, &insn);
-    if (unlikely(vm->error))
+    mmu_fetch(vm, _zp_vm_pc, &insn);
+    if (unlikely(_zp_vm_error))
         return;
 
-    uint8_t* pcl = (uint8_t*)(&vm->pc);
+    uint8_t* pcl = (uint8_t*)(&_zp_vm_pc);
     *pcl+=4;
-    if (!*pcl) vm->pc+=256;
+    if (!*pcl) _zp_vm_pc+=256;
 
-    //vm->pc += 4;
+    //_zp_vm_pc += 4;
     //
-    uint8_t* icl = (uint8_t*)(&vm->insn_count);
+    uint8_t* icl = (uint8_t*)(&_zp_vm_insn_count);
     (*icl)++;
     if(!*icl) {
-        vm->insn_count+=256;
-        if (!vm->insn_count)
-            vm->insn_count_hi++;
+        _zp_vm_insn_count+=256;
+        if (!_zp_vm_insn_count)
+            _zp_vm_insn_count_hi++;
     }
-    //vm->insn_count++;
+    //_zp_vm_insn_count++;
 
     uint32_t insn_opcode = insn & MASK(7), value;
     switch (insn_opcode) {
@@ -876,29 +883,29 @@ void vm_step(vm_t *vm)
         set_dest(vm, insn, decode_u(insn));
         break;
     case RV32_AUIPC:
-        set_dest(vm, insn, decode_u(insn) + vm->current_pc);
+        set_dest(vm, insn, decode_u(insn) + _zp_vm_current_pc);
         break;
     case RV32_JAL:
-        op_jump_link(vm, insn, decode_j(insn) + vm->current_pc);
+        op_jump_link(vm, insn, decode_j(insn) + _zp_vm_current_pc);
         break;
     case RV32_JALR:
         op_jump_link(vm, insn, (decode_i(insn) + read_rs1(vm, insn)) & ~1);
         break;
     case RV32_BRANCH:
         if (op_jmp(vm, insn, read_rs1(vm, insn), read_rs2(vm, insn)))
-            do_jump(vm, decode_b(insn) + vm->current_pc);
+            do_jump(vm, decode_b(insn) + _zp_vm_current_pc);
         break;
     case RV32_LOAD:
         mmu_load(vm, read_rs1(vm, insn) + decode_i(insn), decode_func3(insn),
                  &value, false);
-        if (unlikely(vm->error))
+        if (unlikely(_zp_vm_error))
             return;
         set_dest(vm, insn, value);
         break;
     case RV32_STORE:
         mmu_store(vm, read_rs1(vm, insn) + decode_s(insn), decode_func3(insn),
                   read_rs2(vm, insn), false);
-        if (unlikely(vm->error))
+        if (unlikely(_zp_vm_error))
             return;
         break;
     case RV32_MISC_MEM:
