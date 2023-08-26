@@ -842,13 +842,21 @@ void vm_step(vm_t *vm)
     if (unlikely(vm->error))
         return;
 
-    vm->pc += 4;
-    vm->insn_count++;
-#if !C64
-    /* Unlikely to overflow on such a slow platform ... */
-    if (!vm->insn_count)
-        vm->insn_count_hi++;
-#endif
+    uint8_t* pcl = (uint8_t*)(&vm->pc);
+    *pcl+=4;
+    if (!*pcl) vm->pc+=256;
+
+    //vm->pc += 4;
+    //
+    uint8_t* icl = (uint8_t*)(&vm->insn_count);
+    (*icl)++;
+    if(!*icl) {
+        vm->insn_count+=256;
+        if (!vm->insn_count)
+            vm->insn_count_hi++;
+    }
+    //vm->insn_count++;
+
     uint32_t insn_opcode = insn & MASK(7), value;
     switch (insn_opcode) {
     case RV32_OP_IMM:
