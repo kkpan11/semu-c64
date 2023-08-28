@@ -411,7 +411,7 @@ static int semu_start(int argc, char **argv)
     map_file(&ram_loc, kernel_file);
     /* Load at last 1 MiB to prevent kernel from overwriting it */
     ram_loc = ((char *) emu.ram) + dtb_addr;
-    map_file(&ram_loc, dtb_file);
+    //map_file(&ram_loc, dtb_file);
     /* Load optional initrd image at last 8 MiB before the dtb region to
      * prevent kernel from overwritting it
      */
