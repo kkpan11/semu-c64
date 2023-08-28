@@ -10,6 +10,79 @@ It even emulates virtual memory with an MMU.
 
 I have **not** tested it on **real hardware yet**, that's the next challenge .. for you. So please send me a link to a timelapse video of an original unit with REU booting Linux :D
 
+# ChangeLog / Updates
+
+## Aug 28th 2023, Optimizations!
+
+First of all, I like to correct a mistake: The measurement of 300
+RISCV32-Mcycles of boot time which I stated on reddit is rather
+inaccurate. I measured it by a simple manual checking when to stop the
+emulation (with a limit on the `vm.insn_count` variable) and checked
+it to "about when I could" login with the PC build of the
+simulator. That is, of course, more than just "boot time" and also
+includes actual run time after boot and I underestimated the time it
+would take me to kill the PC emulator. IOW, I didn't intend to throw
+dirt onto Linux :D
+
+I have changed the code now to optionally enable a stop when the
+string `buildroot login:` is encountered on the simulated UART. This
+is of course, not really an elegant way to do it, but it works and it
+gives 100% repeated cycle count numbers when the boot process is
+emulated on PC. I really like `semu` as an emulator (and have other
+ideas what one could do to with it which are more practically
+oriented), however there is a lot of additional tooling which could be
+implemented around it.
+
+Measuring the new way, I now get:
+`
+VM RISCV insn count: 137085690
+`
+
+for the "v0.0.1 release" (LOL), so 140Mcycles. With enabling `cramfs`
+(and I hope also with XIP, though one should check that), this melts
+down considerably, to:
+
+`
+VM RISCV insn count: 94748399
+`
+
+about 95Mcycles which is a nice 30% improvement on the 'guest
+side'. With the rough cycle count ratio which I posted on reddit of
+about 1500 6510 ticks for each RISCV32 instruction, boot time with the
+V0.0.1 `semu` and the new kernel on a real C64 should now be close to
+142.5ksec, or 1.65 days.
+
+Then, I further set the compiler flag `-O3` instead of `-Os`, which
+surprisingly also does what one expect even for `llvm-mos`, and I got
+another improvement of about 5.3% runtime on the emulator side, albeit
+with a considerable code size increase.
+
+This reduces further by about 4.2% using a recent git of `llvm-mos`
+where the author fixed a subexpression elimination bug when doing bit
+shifts on long words (which the emulator does - a lot).
+
+A further nice ~3.9% improvement could be had by moving key emulator
+variables to the zero page. But this means that the codebase can not
+be easily kept in sync with upstream anymore, for the time being, I'll
+push that to a branch named `hackopt`.
+
+I believe these are about the lowest hanging fruit there are to get
+the figures better, but pull requests are welcome of course. Taken
+together, this should speed up everything to about 59% of V0.0.1 with
+V0.0.2 now, or about 1d 10.5h.
+
+I further noticed during tests that my MMU cache implementation
+ironically does not really work for the C64 (though was inspired by
+it), as `llvm` seems to miss a few key cross-function
+optimizations. So this needs improvement and the C-64 is now stuck at
+the adhoc single-level MMU-lookup cache for fetch, store, load that it
+already has.
+
+Note further that, though I have checked the initial release to
+run through to the prompt on Vice, though might not do this for the
+sake of my own sanity for each and every release I post here. Consider
+all of them highly experimental and not fit for production work ;-)
+
 # Building it
 
 Just use `make`. You need [`mos-c64-clang`](https://github.com/llvm-mos/).
