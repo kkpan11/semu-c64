@@ -117,7 +117,7 @@ I plan to add an archive with all the neccessary premade binaries as soon as I f
 
 # Thanks
 
-This is in essence a fork of the very nicely minimalist RISC-V32 emulator named [semu](https://github.com/sysprog21/semu), compiled and ported using the new [llvm-mos](https://github.com/llvm-mos/) and would not have been so possible without all that previous work.
+This is in essence a fork of the very nicely minimalist RISC-V32 emulator named [semu](https://github.com/sysprog21/semu), compiled and ported using the new [llvm-mos](https://github.com/llvm-mos/) and would not have been possible without all that previous work.
 
 # (Boot animation)
 ![(Boot animation)](boot_anim.gif)
