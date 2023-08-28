@@ -6,7 +6,7 @@ C64=1
 ifeq ($(C64), 1)
 
 CC = mos-c64-clang
-CFLAGS := -Os -g -Wall -Wextra -flto -DC64=1
+CFLAGS := -O3 -g -Wall -Wextra -flto -DC64=1
 else
 
 CC ?= gcc
