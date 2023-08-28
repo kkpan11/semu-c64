@@ -2,7 +2,7 @@
 
 kernel = open("Image", "rb").read()
 dtb = open("minimal.dtb", "rb").read()
-initrd = open("rootfs.cpio", "rb").read()
+initrd = open("rootfs.cramfs", "rb").read()
 
 REUSIZE = 16 * 1024 * 1024
 DTB_SIZE = 16384

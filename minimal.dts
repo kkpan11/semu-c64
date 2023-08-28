@@ -10,10 +10,10 @@
     };
 
     chosen {
-	bootargs = "earlycon console=ttyS0";
+	bootargs = "earlycon console=ttyS0 rootfstype=cramfs root=mtd0 phram.phram=mtd0,0x0c00000,0x400000";
 	stdout-path = "serial0";
-	linux,initrd-start = <0x0c00000>; /* 16MiB - 4MiB */
-	linux,initrd-end =   <0x0ffffff>; /* 16MiB - 1 */
+	//linux,initrd-start = <0x0c00000>; /* 16MiB - 4MiB */
+	//linux,initrd-end =   <0x0ffffff>; /* 16MiB - 1 */
     };
 
     cpus {
@@ -34,12 +34,14 @@
 	};
     };
 
+
     sram: memory@0 {
 	device_type = "memory";
-	reg = <0x00000000 0x01000000>;
+	reg = <0x00000000 0x00c00000>;
 	reg-names = "sram0";
     };
 
+    
     soc {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -64,6 +66,13 @@
 	    no-loopback-test;
 	    clock-frequency = <5000000>; /* the baudrate divisor is ignored */
 	};
+
+/*        flash@1c00000 {
+    	    compatible = "mtd-ram";
+  	    reg = <0x01c00000 0x01400000>;
+	    bank-width = <4>;
+    	};*/
+
 
 #if SEMU_FEATURE_VIRTIONET
 	net0: virtio@4100000 {
