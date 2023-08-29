@@ -18,17 +18,17 @@ First of all, I like to correct a mistake: The measurement of 300
 RISCV32-Mcycles of boot time which I stated on reddit is rather
 inaccurate. I measured it by a simple manual checking when to stop the
 emulation (with a limit on the `vm.insn_count` variable) and checked
-it to "about when I could" login with the PC build of the
+it to "about when I could successfully login" with the PC build of the
 simulator. That is, of course, more than just "boot time" and also
 includes actual run time after boot and I underestimated the time it
-would take me to kill the PC emulator. IOW, I didn't intend to throw
+ran still after boot this way. IOW, I didn't intend to throw
 dirt onto Linux :D
 
 I have changed the code now to optionally enable a stop when the
 string `buildroot login:` is encountered on the simulated UART. This
 is of course, not really an elegant way to do it, but it works and it
 gives 100% repeated cycle count numbers when the boot process is
-emulated on PC. I really like `semu` as an emulator (and have other
+emulated on the PC. I really like `semu` as an emulator (and have other
 ideas what one could do to with it which are more practically
 oriented), however there is a lot of additional tooling which could be
 implemented around it.
@@ -78,10 +78,11 @@ optimizations. So this needs improvement and the C-64 is now stuck at
 the adhoc single-level MMU-lookup cache for fetch, store, load that it
 already has.
 
-Note further that, though I have checked the initial release to
-run through to the prompt on Vice, though might not do this for the
-sake of my own sanity for each and every release I post here. Consider
-all of them highly experimental and not fit for production work ;-)
+Note further that, though I have checked the initial release to run
+through to the prompt on Vice, though might not do this for the sake
+of my own sanity for each and every release I post here. Consider all
+of them highly experimental and not fit for production work ;-) Edit:
+I have now checked v0.0.2 though, and it boots (in Vice, Alt-W...).
 
 # Building it
 
