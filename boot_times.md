@@ -95,4 +95,4 @@ million to get real time in seconds on a C-64. The last part was done
 manually, of course, so your mileage *will* vary.
 
 I still need to clean up and upload my patched `kernalemu`, as that
-allows to boot to this stage in 8.5min on a AMD Ryzen PC.
+allows to boot to this stage in 8.5min on an AMD Ryzen PC.

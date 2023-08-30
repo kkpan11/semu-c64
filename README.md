@@ -17,6 +17,10 @@ I have **not** tested it on **real hardware yet**, that's the next challenge .. 
 To know what to expect when on real hardware, this [annotated boot
 log](boot_times.md) (from an emulator run on PC) might be helpful.
 
+I uploaded my fork of
+[`kernalemu`](https://github.com/onnokort/kernalemu) for easier
+testing of `semu-c64`.
+
 ## Aug 28th 2023, Optimizations!
 
 First of all, I like to correct a mistake: The measurement of 300
