@@ -12,6 +12,11 @@ I have **not** tested it on **real hardware yet**, that's the next challenge .. 
 
 # ChangeLog / Updates
 
+## Aug 30th 2023, Boot times
+
+To know what to expect when on real hardware, this [annotated boot
+log](boot_times.md) (from an emulator run on PC) might be helpful.
+
 ## Aug 28th 2023, Optimizations!
 
 First of all, I like to correct a mistake: The measurement of 300
