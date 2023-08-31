@@ -1,16 +1,47 @@
 # Running Linux on a Commodore C-64
 
-"But does it run Linux?" can now be finally and affirmatively answered for the Commodore C64!
+"But does it run Linux?" can now be finally and affirmatively answered
+for the Commodore C64!
 
 ![Booted](booted.jpeg)
 
-There is a catch (rather: a couple) of course: It runs *extremely* slowly and it needs a RAM Expansion Unit (REU), as there is no chance to fit it all into just 64KiB.
+There is a catch (rather: a couple) of course: It runs *extremely*
+slowly and it needs a RAM Expansion Unit (REU), as there is no chance
+to fit it all into just 64KiB.
 
 It even emulates virtual memory with an MMU.
 
-I have **not** tested it on **real hardware yet**, that's the next challenge .. for you. So please send me a link to a timelapse video of an original unit with REU booting Linux :D
-
 # ChangeLog / Updates
+
+## Aug 31th 2023, First real boot!
+
+Thanks to emulaThor on Youtube,
+[@hpingel](https://www.github.com/hpingel) on github, a real C-64 has
+now successfully booted for the first time:
+
+https://www.youtube.com/watch?v=TN9zf7wd3VI
+
+Congratulations, so you are likely the first person on the planet to
+have ever booted Linux on a real C-64! :-)
+
+There is still a minor problem, though: There was a kernel-oops
+printed on the C-64. I have not seen that in testing with
+Vice/kernalemu, so I *suspect* it was just a random bit flip, an
+energetic particle hitting a transistor gate in the CPU or somewhere
+at the wrong moment or similar. It could, of course, also be a bug in
+the emulator. If I understand it correctly,
+[@hpingel](https://www.github.com/hpingel) had been parallel booting
+the code on other C-64 models as well, and those crashed earlier,
+likely for similar reasons. Without any input on the keyboard, the
+emulated boot process should be fully deterministic.
+
+The C-64 took about 150 billion 6510 cycles with ~8bits of activity
+each cycle to get to this point, so the bit error rate of the system
+needs to be <<1e-12 to not have any bit flips anywhere. Which is
+probably not very easy given the old hardware and the long runtimes.
+
+So ... the title of "First person successfully booting Linux on a C-64 and
+entering shell without any crashes" is still up for the taking :D
 
 ## Aug 30th 2023, Boot times
 
