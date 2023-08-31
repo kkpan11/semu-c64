@@ -94,7 +94,7 @@ the input handling. You need to divide the second figure by about a
 million to get real time in seconds on a C-64. The last part was done
 manually, of course, so your mileage *will* vary.
 
-The numbers here also all somewhat optimistic, as running it through
+The numbers here are also all somewhat optimistic, as running it through
 `kernalemu` does not count the cycles that the C-64 KERNAL spends in
 IRQ handling and the I/O routines.
 
