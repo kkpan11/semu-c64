@@ -16,6 +16,7 @@
 #include "device.h"
 #include "riscv.h"
 #include "riscv_private.h"
+#include "persistence.h"
 
 /* Define fetch separately since it is simpler (fixed width, already checked
  * alignment, only main RAM is executable).
@@ -363,6 +364,23 @@ vm_t vm = {
         .mem_store = mem_store
 };
 
+static void print_some_emu_state() {
+    printf("PC: %lx\n", vm.pc);
+    printf("TIMER LO, HI: %lx, %lx\n", emu.timer_lo, emu.timer_hi);
+    printf("stopped: %d\n", emu.stopped);
+    printf("UART: %d %d\n", emu.uart.in_ready, emu.uart.in_char);
+    printf("PLIC: %lx %lx %lx %lx\n",
+           emu.plic.masked,
+           emu.plic.ip,
+           emu.plic.ie,
+           emu.plic.active);
+}
+
+#if C64
+// FIXME: Load on-the fly from REU to avoid using all this stack/RAM at once
+uint8_t reu_saved_state[250];
+#endif
+
 __attribute__((nonreentrant))
 static int semu_start(int argc, char **argv)
 {
@@ -427,17 +445,35 @@ static int semu_start(int argc, char **argv)
     atexit(unmap_files);
 #endif
 
-    /* Set up RISC-V hart */
-    emu.timer_hi = emu.timer_lo = 0xFFFFFFFF;
-    vm.page_table_addr = 0;
-    vm.s_mode = true;
-    vm.x_regs[RV_R_A0] = 0; /* hart ID. i.e., cpuid */
-    vm.x_regs[RV_R_A1] = dtb_addr;
+    bool checkpoint_loaded = false;
+    uint8_t *pbase=NULL;
+#if C64
+    load_from_reu(&reu_saved_state, PERSISTENCE_BASEADR, sizeof(reu_saved_state));
 
+    pbase = reu_saved_state;
+    checkpoint_loaded = load_all(&vm, &pbase);
+    printf("checkpoint loaded: %d\n", checkpoint_loaded);
+    printf("number of bytes deserialized: %d\n", pbase - reu_saved_state);
+#else
+    pbase = (uint8_t*)emu.ram + PERSISTENCE_BASEADR;
+    checkpoint_loaded = load_all(&vm, &pbase);
+    printf("Checkpoint loaded: %d\n", checkpoint_loaded);
+    printf("Number of bytes deserialized: %ld\n", pbase - (uint8_t*)emu.ram - PERSISTENCE_BASEADR);
+#endif
+
+    if (!checkpoint_loaded) {
+        /* Set up RISC-V hart */
+        emu.timer_hi = emu.timer_lo = 0xFFFFFFFF;
+        vm.page_table_addr = 0;
+        vm.s_mode = true;
+        vm.x_regs[RV_R_A0] = 0; /* hart ID. i.e., cpuid */
+        vm.x_regs[RV_R_A1] = dtb_addr;
+    }
     /* Set up peripherals */
     emu.uart.in_fd = 0, emu.uart.out_fd = 1;
 
 #if !C64
+    print_some_emu_state();
     capture_keyboard_input(); /* set up uart */
 #if SEMU_HAS(VIRTIONET)
     if (!virtio_net_init(&(emu.vnet)))
@@ -497,8 +533,31 @@ static int semu_start(int argc, char **argv)
         vm_error_report(&vm);
         return 2;
     }
+    printf("\n\nVM RISCV insn count: %lu\n", (long unsigned)(vm.insn_count));
+#if C64
+    pbase = reu_saved_state;
+    save_all(&vm, &pbase);
+    // might seem meaningless to print here, but it shows up on kernalemu
+    printf("number of bytes serialized: %d\n", pbase - reu_saved_state);
+    save_to_reu(PERSISTENCE_BASEADR, &reu_saved_state, pbase - reu_saved_state);
+    void (*reset_vect)() = (void*)0xfce2;
+    reset_vect();
+#else
+    printf("Emulator stopped.\n");
+    print_some_emu_state();
+    printf("PC: %lx\n", vm.pc);
+    pbase = (uint8_t*)emu.ram + PERSISTENCE_BASEADR;
+    save_all(&vm, &pbase);
+    printf("Number of bytes serialized: %ld\n", pbase - (uint8_t*)emu.ram - PERSISTENCE_BASEADR);
+    FILE *reufile = fopen("reufile.semu.written", "wb");
+    assert(reufile != NULL);
+    int wreu = fwrite(emu.ram, 1, 16777216, reufile);
+    printf("WROTE REU: %d\n",  wreu);
 
-    /* unreachable */
+    // Note: This might fail if running repeatedly on the output file and it triggers another save.
+    assert(wreu == 16777216);
+    fclose(reufile);
+#endif
     return 0;
 }
 

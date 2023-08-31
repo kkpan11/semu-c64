@@ -13,10 +13,43 @@
 #include "device.h"
 #include "riscv.h"
 #include "riscv_private.h"
+#include "persistence.h"
 
 /* Emulate 8250 (plain, without loopback mode support) */
 
 #define U8250_INT_THRE 1
+
+void save_uart(const vm_t *vm,
+               uint8_t **obufp) {
+    const emu_state_t *data = (const emu_state_t *) vm->priv;
+    const u8250_state_t uart = data->uart;
+    SER8(uart.dll);
+    SER8(uart.dlh);
+    SER8(uart.lcr);
+    SER8(uart.ier);
+    SER8(uart.current_int);
+    SER8(uart.pending_ints);
+    SER8(uart.mcr);
+    // in_fd, out_fd cannot be saved
+    SER8(uart.in_ready);
+    SER8(uart.in_char);
+}
+
+void load_uart(vm_t *vm,
+               uint8_t **ibufp) {
+    emu_state_t *data = (const emu_state_t *) vm->priv;
+    u8250_state_t* uart = &data->uart;
+    DESER8(uart->dll);
+    DESER8(uart->dlh);
+    DESER8(uart->lcr);
+    DESER8(uart->ier);
+    DESER8(uart->current_int);
+    DESER8(uart->pending_ints);
+    DESER8(uart->mcr);
+    DESER8(uart->in_ready);
+    DESER8(uart->in_char);
+}
+
 
 #if !C64
 static void reset_keyboard_input()
@@ -85,6 +118,7 @@ extern vm_t vm;
 
 char *login_stop_test="buildroot login";
 //char *login_stop_test="syslogd";
+//char *login_stop_test="buildroot login:";
 
 static void login_stop(uint8_t value) {
     static char *ptr = NULL;
@@ -93,13 +127,8 @@ static void login_stop(uint8_t value) {
         ptr++;
     } else ptr = login_stop_test;
     if (!*ptr) {
-        printf("\n\nVM RISCV insn count: %lu\n", (long unsigned)(vm.insn_count));
-#if C64
-        void (*reset_vect)() = (void*)0xfce2;
-        reset_vect();
-#else
-        exit(0);
-#endif
+        emu_state_t* emu = (emu_state_t*)vm.priv;
+        emu->stopped = true;
     }
 }
 

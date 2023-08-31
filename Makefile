@@ -61,6 +61,7 @@ OBJS := \
 	plic.o \
 	uart.o \
 	main.o \
+	persistence.o \
 	$(OBJS_EXTRA)
 
 ifeq ($(C64), 1)

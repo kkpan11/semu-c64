@@ -1,8 +1,29 @@
 #include "device.h"
 #include "riscv.h"
 #include "riscv_private.h"
+#include "persistence.h"
 
 /* Make PLIC as simple as possible: 32 interrupts, no priority */
+
+void save_plic(const vm_t *vm,
+               uint8_t **obufp) {
+    const emu_state_t *data = (const emu_state_t *) vm->priv;
+    const plic_state_t plic = data->plic;
+    SER32(plic.masked);
+    SER32(plic.ip);
+    SER32(plic.ie);
+    SER32(plic.active);
+}
+
+void load_plic(vm_t *vm,
+               uint8_t **ibufp) {
+    emu_state_t *data = (const emu_state_t *) vm->priv;
+    plic_state_t* plic = &data->plic;
+    DESER32(plic->masked);
+    DESER32(plic->ip);
+    DESER32(plic->ie);
+    DESER32(plic->active);
+}
 
 void plic_update_interrupts(vm_t *vm, plic_state_t *plic)
 {
