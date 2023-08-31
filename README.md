@@ -13,6 +13,33 @@ It even emulates virtual memory with an MMU.
 
 # ChangeLog / Updates
 
+## Aug 31th 2023, Persistence (quickly load a booted Linux)
+
+I added simple persistence to the emulator so it is possible to
+"quickly" (ahem) *run* Linux on your C-64.
+
+The emulator can load the RISC-V CPU registers (plus the other HW, UART
+and interrupt controller) from REU address 0xfff000. Which is behind the
+initcramfs image and should not interfere with anything else. (Yes, this
+is not really a nice way to do it, but it works for now ...)
+
+I'll add a release "v0.0.2booted" or so (see 'Releases' to the right)
+which will have the emulator to load from saved state plus the REU
+image that has Linux pre-booted in it.
+
+Otherwise, the Linux kernel and userland is exactly the same, the only
+difference is that the state of the emulator has advanced to just
+before the colon of the prompt "buildroot login:".
+
+In other words, when you load and start this file with semu, there
+should be a a single ':' appearing relatively quickly. You need to enter
+'root' there and should be logged in, just like before.
+
+It also allows to do another cross-check between the PC and the C-64
+variant of semu - to check that the generated REU files after booting
+and persisting the emulator state are the same, including the state of
+the CPU and peripherals.
+
 ## Aug 31th 2023, First real boot!
 
 Thanks to emulaThor on Youtube,
