@@ -83,7 +83,8 @@ void u8250_check_ready(u8250_state_t *uart)
 
 extern vm_t vm;
 
-char *login_stop_test="buildroot login:";
+char *login_stop_test="buildroot login";
+//char *login_stop_test="syslogd";
 
 static void login_stop(uint8_t value) {
     static char *ptr = NULL;
