@@ -416,11 +416,12 @@ static int semu_start(int argc, char **argv)
     /* Load optional initrd image at last 8 MiB before the dtb region to
      * prevent kernel from overwritting it
      */
+    /*
     if (initrd_file) {
-        uint32_t initrd_addr = RAM_SIZE - INITRD_SIZE; /* Init RAM disk */
+        uint32_t initrd_addr = RAM_SIZE - INITRD_SIZE; // Init RAM disk
         ram_loc = ((char *) emu.ram) + initrd_addr;
         map_file(&ram_loc, initrd_file);
-    }
+    }*/
 
     /* Hook for unmapping files */
     atexit(unmap_files);
