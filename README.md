@@ -41,7 +41,7 @@ needs to be <<1e-12 to not have any bit flips anywhere. Which is
 probably not very easy given the old hardware and the long runtimes.
 
 So ... the title of "First person successfully booting Linux on a C-64 and
-entering shell without any crashes" is still up for the taking :D
+entering a shell without any crashes" is still up for the taking :D
 
 ## Aug 30th 2023, Boot times
 
