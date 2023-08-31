@@ -26,3 +26,20 @@ void saveword_reu(uint32_t addr, volatile uint32_t value) {
     *REU_XFERLEN = 4;
     *REU_CMD = 0b10010000;
 }
+
+
+void load_from_reu(void* dest, uint32_t reu_addr, uint16_t len) {
+    *REU_C64ADR = (uint16_t)dest;
+    *REU_ADDRLO = reu_addr & 0xffff;
+    *REU_ADDRHI = reu_addr >> 16;
+    *REU_XFERLEN = len;
+    *REU_CMD = 0b10010001;
+}
+
+void save_to_reu(uint32_t reu_addr, void* src, uint16_t len) {
+    *REU_C64ADR = (uint16_t)src;
+    *REU_ADDRLO = reu_addr & 0xffff;
+    *REU_ADDRHI = reu_addr >> 16;
+    *REU_XFERLEN = len;
+    *REU_CMD = 0b10010000;
+}
