@@ -383,7 +383,7 @@ static int semu_start(int argc, char **argv)
 
 #if C64
     printf("c-64 semu risc-v emulator\n");
-    printf("Git commit: $Id$\n");
+    printf("git object id: $Id$\n");
     printf("emu state begin: %p, size: %04x\n", &emu, sizeof(emu));
     printf("vm state begin: %p, size: %04x\n", &vm, sizeof(vm));
 #endif
